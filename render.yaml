@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: random-video-chat
+    env: node
+    region: oregon  # yoki frankfurt, sizga yaqin bo'lganini tanlang
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+    autoDeploy: true
