@@ -14,6 +14,9 @@ let waitingPool = [];
 io.on('connection', socket => {
   console.log('Client connected:', socket.id);
 
+  // 🔴 Real-time user count
+  io.emit('user-count', io.engine.clientsCount);
+
   socket.on('start', () => {
     if (!waitingPool.includes(socket)) {
       waitingPool.push(socket);
@@ -35,6 +38,7 @@ io.on('connection', socket => {
   socket.on('disconnect', () => {
     unpair(socket);
     waitingPool = waitingPool.filter(s => s.id !== socket.id);
+    io.emit('user-count', io.engine.clientsCount); // update user count
   });
 
   function pairRandom(sock) {
@@ -45,7 +49,6 @@ io.on('connection', socket => {
       sock.emit('waiting');
       return;
     }
-    // pick random partner
     const randIndex = Math.floor(Math.random() * waitingPool.length);
     const partner = waitingPool.splice(randIndex, 1)[0];
     sock.partner = partner.id;
@@ -62,4 +65,4 @@ io.on('connection', socket => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
