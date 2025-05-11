@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Video Chat</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <video id="localVideo" autoplay muted playsinline></video>
+    <div id="controls">
+      <button id="toggleCamera" class="control-button"><i class="bi bi-camera-video"></i></button>
+      <button id="toggleMic" class="control-button"><i class="bi bi-mic"></i></button>
+      <button id="startChat" class="start-button"><i class="bi bi-play-fill"></i></button>
+      <button id="nextChat" class="control-button"><i class="bi bi-arrow-clockwise"></i></button>
+    </div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
