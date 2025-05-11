@@ -27,27 +27,28 @@ function updateUserCount() {
 
 /**
  * Socket’ni tasodifiy sherik bilan juftlaydi
+ * va bir tarafga caller (initiator) flag qo‘yadi.
  */
 function pairRandom(socket) {
-  // O‘zini kutishdan olib tashlaymiz (agar oldin qo‘shilgan bo‘lsa)
+  // O‘zini kutishdan olib tashlaymiz (agar bor bo‘lsa)
   const idx = waitingPool.indexOf(socket.id);
   if (idx !== -1) waitingPool.splice(idx, 1);
 
   if (waitingPool.length > 0) {
-    // Tasodifiy sherik tanlaymiz
     const randIndex = Math.floor(Math.random() * waitingPool.length);
     const partnerId = waitingPool.splice(randIndex, 1)[0];
     const partnerSocket = io.sockets.sockets.get(partnerId);
 
-    // Juftlikni belgilang
+    // Caller va callee ni ajratamiz
     socket.partner = partnerId;
     partnerSocket.partner = socket.id;
 
-    socket.emit('paired');
-    partnerSocket.emit('paired');
+    // socket – caller (initiator), partnerSocket – callee
+    socket.emit('paired',       { initiator: true  });
+    partnerSocket.emit('paired',{ initiator: false });
+
     console.log(`Paired ${socket.id} ↔ ${partnerId}`);
   } else {
-    // Hozircha kutadi
     waitingPool.push(socket.id);
     console.log(`${socket.id} kutmoqda`);
   }
@@ -67,38 +68,32 @@ function unpair(socket) {
   socket.partner = null;
 }
 
-// Barcha hodisalarni bitta blokda qayta ishlaymiz
 io.on('connection', socket => {
   console.log('Yangi mijoz ulanishi:', socket.id);
 
-  // Ulanish bo‘lgach: user-count va juftlashish
+  // Har ulanishda va keyinchalik user-count yangilanadi
   updateUserCount();
   pairRandom(socket);
 
-  // “Next” bosilganda: avvalgi juftlikni uzib, yangisini topamiz
   socket.on('next', () => {
     unpair(socket);
     pairRandom(socket);
     updateUserCount();
   });
 
-  // Signal ma’lumotlarini sherikka uzatamiz
   socket.on('signal', data => {
     const partner = io.sockets.sockets.get(socket.partner);
     if (partner) partner.emit('signal', data);
   });
 
-  // Disconnect bo‘lsa: juftlikni uzib, user sonini yangilaymiz
   socket.on('disconnect', () => {
     console.log('Mijoz uzildi:', socket.id);
     unpair(socket);
     updateUserCount();
-    // Kutish havzasidan olib tashlaymiz (agar u yerda bo‘lsa)
     waitingPool = waitingPool.filter(id => id !== socket.id);
   });
 });
 
-// Serverni ishga tushiramiz
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
   console.log(`Server http://localhost:${PORT} da ishga tushdi`);
