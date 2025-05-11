@@ -1,5 +1,6 @@
 // app.js
-const socket = io('http://localhost:3000');
+// Shu tarzda yozsangiz—mydomain.onrender.com kabi hozirgi host-ga ulanadi
+const socket = io();
 let localStream, peerConnection;
 const config = {
   iceServers: [
