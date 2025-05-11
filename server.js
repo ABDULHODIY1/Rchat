@@ -56,6 +56,12 @@ io.on('connection', socket => {
     sock.emit('paired');
     partner.emit('paired');
   }
+socket.on('signal', data => {
+  const partner = io.sockets.sockets.get(socket.partner);
+  if (partner) {
+    partner.emit('signal', data);
+  }
+});
 
   function unpair(sock) {
     const partner = io.sockets.sockets.get(sock.partner);
