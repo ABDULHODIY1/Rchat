@@ -51,12 +51,14 @@ socket.on('paired', async () => {
 });
 
 socket.on('signal', async ({ description, candidate }) => {
+  console.log("SIGNAL RECEIVED:", description || candidate);
+
   if (description) {
     if (!peerConnection) createPeer();
     await peerConnection.setRemoteDescription(description);
     if (description.type === 'offer') {
-      const ans = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(ans);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
       socket.emit('signal', { description: peerConnection.localDescription });
     }
   } else if (candidate) {
