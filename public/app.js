@@ -1,49 +1,66 @@
-const socket = io();
+// app.js
+const socket = io('http://localhost:3000');
 let localStream, peerConnection;
+const config = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ]
+};
+
 const el = id => document.getElementById(id);
-const localVideo = el('localVideo'), remoteVideo = el('remoteVideo');
-const toggleCamera = el('toggleCamera'), toggleMic = el('toggleMic');
-const startChat = el('startChat'), nextChat = el('nextChat');
-const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const localVideo = el('localVideo');
+const remoteVideo = el('remoteVideo');
+const toggleCamera = el('toggleCamera');
+const toggleMic = el('toggleMic');
+const nextChat = el('nextChat');
+const liveUsers = el('liveUsers');
 
+// 1. Kamera va mikrofonni ochamiz
 async function initMedia() {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  localVideo.srcObject = localStream;
-}
-function createPeer() {
-  peerConnection = new RTCPeerConnection(config);
-  localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
-  peerConnection.onicecandidate = e => e.candidate && socket.emit('signal', { candidate: e.candidate });
-  peerConnection.ontrack = e => remoteVideo.srcObject = e.streams[0];
-}
-
-let chatting = false;
-function updateButton() {
-  startChat.innerHTML = chatting ? '<i class="bi bi-stop-fill"></i>' : '<i class="bi bi-play-fill"></i>';
-}
-
-startChat.addEventListener('click', async () => {
-  if (!chatting) {
-    if (!localStream) await initMedia();
-    socket.emit('start');
-  } else {
-    socket.emit('next');
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localVideo.srcObject = localStream;
+    console.log("Media initialized:", localStream);
+  } catch (err) {
+    alert("Kamera yoki mikrofonga ruxsat berilmadi!");
+    console.error("Media error:", err);
   }
-  chatting = true;
-  updateButton();
-});
-nextChat.addEventListener('click', () => {
-  if (chatting) socket.emit('next');
-});
-toggleMic.addEventListener('click', () => {
-  localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
-});
-toggleCamera.addEventListener('click', () => {
-  localStream.getVideoTracks()[0].enabled = !localStream.getVideoTracks()[0].enabled;
+}
+
+// 2. RTCPeerConnection va hodisalarni o‘rnatamiz
+function createPeer() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+
+  peerConnection = new RTCPeerConnection(config);
+
+  // O‘z treklarini qo‘shamiz
+  localStream.getTracks().forEach(track => {
+    peerConnection.addTrack(track, localStream);
+  });
+
+  // ICE kandidatlari
+  peerConnection.onicecandidate = e => {
+    if (e.candidate) socket.emit('signal', { candidate: e.candidate });
+  };
+
+  // Ustunlik bilan remote trek kelganda ishlaydi
+  peerConnection.ontrack = event => {
+    console.log("Remote track qabul qilindi:", event.streams[0]);
+    remoteVideo.srcObject = event.streams[0];
+  };
+}
+
+// 3. Socket hodisalari
+socket.on('connect', () => {
+  console.log("Socket.io ulandi:", socket.id);
 });
 
-socket.on('waiting', () => console.log('Waiting for partner...'));
 socket.on('paired', async () => {
+  console.log('Sherik topildi!');
   createPeer();
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
@@ -51,10 +68,9 @@ socket.on('paired', async () => {
 });
 
 socket.on('signal', async ({ description, candidate }) => {
-  console.log("SIGNAL RECEIVED:", description || candidate);
+  if (!peerConnection) createPeer();
 
   if (description) {
-    if (!peerConnection) createPeer();
     await peerConnection.setRemoteDescription(description);
     if (description.type === 'offer') {
       const answer = await peerConnection.createAnswer();
@@ -62,15 +78,45 @@ socket.on('signal', async ({ description, candidate }) => {
       socket.emit('signal', { description: peerConnection.localDescription });
     }
   } else if (candidate) {
-    await peerConnection.addIceCandidate(candidate);
+    if (peerConnection.remoteDescription) {
+      await peerConnection.addIceCandidate(candidate);
+    }
   }
 });
 
 socket.on('partner-disconnected', () => {
-  console.log('Partner disconnected');
+  console.log('Sherik uzildi');
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+  remoteVideo.srcObject = null;
 });
 
-// 🔴 Real-time user count display
 socket.on('user-count', count => {
-  document.getElementById('liveUsers').textContent = `👥 Users: ${count}`;
+  liveUsers.textContent = `👥 Users: ${count}`;
 });
+
+// 4. Tugmalar
+toggleMic.addEventListener('click', () => {
+  if (localStream) {
+    const audio = localStream.getAudioTracks()[0];
+    audio.enabled = !audio.enabled;
+  }
+});
+
+toggleCamera.addEventListener('click', () => {
+  if (localStream) {
+    const video = localStream.getVideoTracks()[0];
+    video.enabled = !video.enabled;
+  }
+});
+
+nextChat.addEventListener('click', () => {
+  socket.emit('next');
+});
+
+// Avtomatik media ochish
+(async () => {
+  await initMedia();
+})();
