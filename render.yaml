@@ -1,13 +1,14 @@
 services:
   - type: web
-    name: random-video-chat  # Xizmat nomi (Render.com'da shu nomda ko‘rinadi)
-    env: node                # Node.js muhiti
-    region: oregon           # Server manzili (agar Yevropaga yaqin bo‘lsang, 'frankfurt' qilsa ham bo‘ladi)
-    plan: free               # Bepul tarif (cheklovli, lekin boshlash uchun yaxshi)
-    branch: main             # GitHub’dagi asosiy branch nomi
-    buildCommand: npm install       # Dasturni qurish (build) buyrug‘i
-    startCommand: node server.js    # Serverni ishga tushirish buyrug‘i
-    envVars:                        # Muhit o‘zgaruvchilari (environment variables)
+    name: random-video-chat     # Xizmat nomi Render.com’da ko‘rinadi
+    env: node                   # Muhit: Node.js
+    region: oregon              # Server manzili (siz frankfurt ham tanlashingiz mumkin)
+    plan: free                  # Bepul tarif
+    branch: main                # GitHub’dagi asosiy branch nomi
+    buildCommand: npm install   # Build bosqichi: kutubxonalarni o‘rnatish
+    startCommand: node server.js # Serverni ishga tushirish
+    publishPath: public         # Agar statik fayllaringiz “public” papkada bo‘lsa
+    envVars:
       - key: NODE_ENV
         value: production
-    autoDeploy: true         # GitHub’da `main` branchga push bo‘lsa, avtomatik joylaydi
+    autoDeploy: true            # main branch’ga push qilinganda avtomatik deploy
