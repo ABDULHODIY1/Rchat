@@ -1,192 +1,115 @@
-//// server.js
-//const express = require('express');
-//const http = require('http');
-//const path = require('path');
-//const { Server } = require('socket.io');
-//
-//const app = express();
-//const httpServer = http.createServer(app);
-//const io = new Server(httpServer, {
-//  cors: { origin: "*" }
-//});
-//
-//// Static fayllarni tarqatamiz
-//app.use(express.static(path.join(__dirname, 'public')));
-//
-//// Kutish havzasi
-//let waitingPool = [];
-//
-///**
-// * Hozirgi ulangan mijozlar sonini hisoblab,
-// * barcha mijozlarga yuboradi.
-// */
-//function updateUserCount() {
-//  const count = io.sockets.sockets.size;
-//  io.emit('user-count', count);
-//}
-//
-///**
-// * Socket’ni tasodifiy sherik bilan juftlaydi
-// * va bir tarafga caller (initiator) flag qo‘yadi.
-// */
-//function pairRandom(socket) {
-//  // O‘zini kutishdan olib tashlaymiz (agar bor bo‘lsa)
-//  const idx = waitingPool.indexOf(socket.id);
-//  if (idx !== -1) waitingPool.splice(idx, 1);
-//
-//  if (waitingPool.length > 0) {
-//    const randIndex = Math.floor(Math.random() * waitingPool.length);
-//    const partnerId = waitingPool.splice(randIndex, 1)[0];
-//    const partnerSocket = io.sockets.sockets.get(partnerId);
-//
-//    // Caller va callee ni ajratamiz
-//    socket.partner = partnerId;
-//    partnerSocket.partner = socket.id;
-//
-//    // socket – caller (initiator), partnerSocket – callee
-//    socket.emit('paired',       { initiator: true  });
-//    partnerSocket.emit('paired',{ initiator: false });
-//
-//    console.log(`Paired ${socket.id} ↔ ${partnerId}`);
-//  } else {
-//    waitingPool.push(socket.id);
-//    console.log(`${socket.id} kutmoqda`);
-//  }
-//}
-//
-///**
-// * Socket’ni juftlikdan olib tashlaydi
-// */
-//function unpair(socket) {
-//  if (!socket.partner) return;
-//  const partner = io.sockets.sockets.get(socket.partner);
-//  if (partner) {
-//    partner.partner = null;
-//    partner.emit('partner-disconnected');
-//    waitingPool.push(partner.id);
-//  }
-//  socket.partner = null;
-//}
-//
-//io.on('connection', socket => {
-//  console.log('Yangi mijoz ulanishi:', socket.id);
-//
-//  // Har ulanishda va keyinchalik user-count yangilanadi
-//  updateUserCount();
-//  pairRandom(socket);
-//
-//  socket.on('next', () => {
-//    unpair(socket);
-//    pairRandom(socket);
-//    updateUserCount();
-//  });
-//
-//  socket.on('signal', data => {
-//    const partner = io.sockets.sockets.get(socket.partner);
-//    if (partner) partner.emit('signal', data);
-//  });
-//
-//  socket.on('disconnect', () => {
-//    console.log('Mijoz uzildi:', socket.id);
-//    unpair(socket);
-//    updateUserCount();
-//    waitingPool = waitingPool.filter(id => id !== socket.id);
-//  });
-//});
-//
-//const PORT = process.env.PORT || 3000;
-//httpServer.listen(PORT, () => {
-//  console.log(`Server http://localhost:${PORT} da ishga tushdi`);
-//});
+// server.js
 const express = require('express');
 const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
+const cors = require('cors');
 
-// 1. Express ilovasini yaratish
+// 1️⃣ Express ilovasini yaratish
 const app = express();
 const httpServer = http.createServer(app);
 
-// 2. Socket.IO sozlamalari (CORS ruxsatlari bilan)
+// 2️⃣ CORS konfiguratsiyasi (frontend har qanday origin uchun)
+app.use(cors());
+
+// 3️⃣ Statik fayllarni tarqatish
+app.use(express.static(path.join(__dirname, 'public')));
+
+// 4️⃣ Socket.IO serverini sozlash (CORS bilan barcha originlarga ruxsat)
 const io = new Server(httpServer, {
   cors: { origin: '*' }
 });
 
-// 3. Static fayllarni tarqatish
-app.use(express.static(path.join(__dirname, 'public')));
+// 5️⃣ Kutish havzasi: juftlashmagan socket ID'lari
+const waitingPool = new Set();
 
-// 4. Kutish havzasi: juftlashmagan socketlar
-let waitingPool = [];
-
-// 5. Hozirgi ulanishlar sonini yangilash
+// 6️⃣ Foydalanuvchi sonini yangilash
 function updateUserCount() {
-  const count = io.sockets.sockets.size;
-  io.emit('user-count', count);
+  const count = io.of('/').sockets.size;
+  io.emit('user-count', { count });
 }
 
-// 6. Tasodifiy juftlashuv funksiyasi
+// 7️⃣ Tasodifiy juftlashuv
 function pairRandom(socket) {
-  // Agar socket oldin kutuvchilarda bo'lsa, olib tashlaymiz
-  const idx = waitingPool.indexOf(socket.id);
-  if (idx !== -1) waitingPool.splice(idx, 1);
+  // Agar oldin kutish ro'yxatida bo'lsa olib tashlaymiz
+  waitingPool.delete(socket.id);
 
-  // Agar kimdir kutayotgan bo'lsa, juftlaymiz
-  if (waitingPool.length > 0) {
-    const partnerId = waitingPool.splice(
-      Math.floor(Math.random() * waitingPool.length),
-      1
-    )[0];
-    const partnerSocket = io.sockets.sockets.get(partnerId);
+  // Agar bo'sh kutish ro'yxatida boshqa kimsalar bo'lsa
+  if (waitingPool.size > 0) {
+    // Tasodifiy sherik tanlash
+    const ids = Array.from(waitingPool);
+    const randId = ids[Math.floor(Math.random() * ids.length)];
+    waitingPool.delete(randId);
 
-    socket.partner = partnerId;
-    partnerSocket.partner = socket.id;
+    const partner = io.sockets.sockets.get(randId);
+    if (partner) {
+      // Juftlikni belgilash
+      socket.partner = randId;
+      partner.partner = socket.id;
 
-    // Initiator va calleega xabar berish
-    socket.emit('paired', { initiator: true  });
-    partnerSocket.emit('paired', { initiator: false });
-  } else {
-    // Aks holda kutish havzasiga qo'shamiz
-    waitingPool.push(socket.id);
+      // Signaling
+      socket.emit('paired', { initiator: true });
+      partner.emit('paired', { initiator: false });
+
+      console.log(`Paired ${socket.id} ↔ ${partner.id}`);
+      updateUserCount();
+      return;
+    }
   }
+
+  // Agar juft topilmasa, kutish havzasiga qo'shamiz
+  waitingPool.add(socket.id);
+  console.log(`${socket.id} kutmoqda (waitingPool size: ${waitingPool.size})`);
+  updateUserCount();
 }
 
-// 7. Juftlikni bo'shatish
+// 8️⃣ Juftlikni bo'shatish
 function unpair(socket) {
   if (!socket.partner) return;
   const partner = io.sockets.sockets.get(socket.partner);
+  // Hamkorni xabarlash
   if (partner) {
-    partner.partner = null;
     partner.emit('partner-disconnected');
-    waitingPool.push(partner.id);
+    partner.partner = null;
+    waitingPool.add(partner.id);
+    console.log(`Unpaired ${socket.id} ←/→ ${partner.id}`);
   }
   socket.partner = null;
+  updateUserCount();
 }
 
-// 8. Socket.io hodisalari
+// 9️⃣ Socket hodisalari
 io.on('connection', socket => {
+  console.log('Yangi mijoz ulandi:', socket.id);
   updateUserCount();
   pairRandom(socket);
 
+  // Foydalanuvchi keyingi suhbatni so'raganda
   socket.on('next', () => {
     unpair(socket);
     pairRandom(socket);
-    updateUserCount();
   });
 
+  // Signaling ma'lumotlarini sherikga uzatish
   socket.on('signal', data => {
-    const partner = io.sockets.sockets.get(socket.partner);
-    if (partner) partner.emit('signal', data);
+    if (socket.partner) {
+      const partner = io.sockets.sockets.get(socket.partner);
+      if (partner) partner.emit('signal', data);
+    }
   });
 
+  // Ulanish uzilganda
   socket.on('disconnect', () => {
+    console.log('Mijoz uzildi:', socket.id);
     unpair(socket);
+    // Kutish havzasidan olib tashlash
+    waitingPool.delete(socket.id);
     updateUserCount();
-    waitingPool = waitingPool.filter(id => id !== socket.id);
   });
 });
 
-// 9. Serverni ishga tushirish
+// 🔟 Serverni ishga tushirish
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
-  console.log(`Server running: http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

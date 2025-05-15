@@ -1,121 +1,4 @@
-//// public/app.js
-//
-//let localStream, peerConnection;
-//const config = {
-//  iceServers: [
-//    { urls: 'stun:stun.l.google.com:19302' },
-//    { urls: 'stun:stun1.l.google.com:19302' }
-//  ]
-//};
-//
-//const el = id => document.getElementById(id);
-//const localVideo = el('localVideo');
-//const remoteVideo = el('remoteVideo');
-//const toggleCamera = el('toggleCamera');
-//const toggleMic = el('toggleMic');
-//const nextChat = el('nextChat');
-//const liveUsers = el('liveUsers');
-//
-//let socket;
-//
-//// 1️⃣ Media-ni ochish
-//async function initMedia() {
-//  try {
-//    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-//    localVideo.srcObject = localStream;
-//    console.log("Media initialized:", localStream);
-//  } catch (err) {
-//    alert("Kamera yoki mikrofon ruxsatini bermadingiz!");
-//    console.error("Media error:", err);
-//  }
-//}
-//
-//// 2️⃣ PeerConnection va hodisalar
-//function createPeer() {
-//  if (peerConnection) {
-//    peerConnection.close();
-//    peerConnection = null;
-//  }
-//  peerConnection = new RTCPeerConnection(config);
-//
-//  localStream.getTracks().forEach(track => {
-//    peerConnection.addTrack(track, localStream);
-//  });
-//
-//  peerConnection.onicecandidate = e => {
-//    if (e.candidate) socket.emit('signal', { candidate: e.candidate });
-//  };
-//
-//  peerConnection.ontrack = event => {
-//    console.log("Remote track qabul qilindi:", event.streams[0]);
-//    remoteVideo.srcObject = event.streams[0];
-//  };
-//}
-//
-//// 3️⃣ Socket.IO-ni init qilish
-//function initSocket() {
-//  socket = io(); // hozirgi domen/portga ulanadi
-//
-//  socket.on('connect', () => {
-//    console.log("Socket.io ulandi:", socket.id);
-//  });
-//
-//  // paired: { initiator: boolean }
-//  socket.on('paired', async ({ initiator }) => {
-//    console.log('Sherik topildi! Initiator:', initiator);
-//    createPeer();
-//
-//    if (initiator) {
-//      const offer = await peerConnection.createOffer();
-//      await peerConnection.setLocalDescription(offer);
-//      socket.emit('signal', { description: peerConnection.localDescription });
-//    }
-//  });
-//
-//  socket.on('signal', async ({ description, candidate }) => {
-//    if (!peerConnection) createPeer();
-//
-//    if (description) {
-//      if (description.type === 'offer') {
-//        await peerConnection.setRemoteDescription(description);
-//        const answer = await peerConnection.createAnswer();
-//        await peerConnection.setLocalDescription(answer);
-//        socket.emit('signal', { description: peerConnection.localDescription });
-//      } else {
-//        await peerConnection.setRemoteDescription(description);
-//      }
-//    } else if (candidate) {
-//      if (peerConnection.remoteDescription) {
-//        await peerConnection.addIceCandidate(candidate);
-//      }
-//    }
-//  });
-//
-//  socket.on('partner-disconnected', () => {
-//    console.log('Sherik uzildi');
-//    if (peerConnection) {
-//      peerConnection.close();
-//      peerConnection = null;
-//    }
-//    remoteVideo.srcObject = null;
-//  });
-//
-//  socket.on('user-count', count => {
-//    liveUsers.textContent = `👥 Users: ${count}`;
-//  });
-//
-//  nextChat.addEventListener('click', () => {
-//    socket.emit('next');
-//  });
-//}
-//
-//// 4️⃣ Boshlanish: media tayyor→socket init
-//(async () => {
-//  await initMedia();
-//  initSocket();
-//})();
-// public/app.js
-let localStream, peerConnection, socket;
+// app.js
 
 // STUN server konfiguratsiyasi
 const config = {
@@ -125,7 +8,12 @@ const config = {
   ]
 };
 
-// DOM elementlarini olish funksiyasi
+// Global o‘zgaruvchilar
+let localStream = null;
+let peerConnection = null;
+let socket = null;
+
+// DOM elementlarini olish
 const el = id => document.getElementById(id);
 const localVideo   = el('localVideo');
 const remoteVideo  = el('remoteVideo');
@@ -134,20 +22,21 @@ const toggleMic    = el('toggleMic');
 const nextChat     = el('nextChat');
 const liveUsers    = el('liveUsers');
 
-// 1️⃣ Media-ni ochish (kamera + mikrofon)
+// 1️⃣ Media-ni ochish
 async function initMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     localVideo.srcObject = localStream;
+    localVideo.onloadedmetadata = () => localVideo.play();
 
-    // Kamera tugmasi
+    // Kamera yoqish/o‘chirish
     toggleCamera.addEventListener('click', () => {
       const track = localStream.getVideoTracks()[0];
       track.enabled = !track.enabled;
       toggleCamera.innerHTML = `<i class="bi bi-camera-video${track.enabled ? '' : '-off'}"></i>`;
     });
 
-    // Mikrofon tugmasi
+    // Mikrofon yoqish/o‘chirish
     toggleMic.addEventListener('click', () => {
       const track = localStream.getAudioTracks()[0];
       track.enabled = !track.enabled;
@@ -160,27 +49,26 @@ async function initMedia() {
   }
 }
 
-// 2️⃣ PeerConnection yaratish va hodisalar
+// 2️⃣ PeerConnection yaratish
 function createPeer() {
+  // Eski aloqani tozalash
   if (peerConnection) peerConnection.close();
+
   peerConnection = new RTCPeerConnection(config);
 
-  // Media tracklarini qo'shish
-  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  // Mahalliy tracklarni qo‘shish
+  localStream.getTracks().forEach(track =>
+    peerConnection.addTrack(track, localStream)
+  );
 
-  // Negotiatsiya talab qilinganda offer yuborish
-  peerConnection.onnegotiationneeded = async () => {
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit('signal', { description: peerConnection.localDescription });
-  };
-
-  // ICE candidate almashish
+  // ICE candidate topilganda signaling orqali jo‘natish
   peerConnection.onicecandidate = e => {
-    if (e.candidate) socket.emit('signal', { candidate: e.candidate });
+    if (e.candidate) {
+      socket.emit('signal', { candidate: e.candidate });
+    }
   };
 
-  // Masofadagi streamni ko'rsatish
+  // Masofaviy stream kelganda video elementga ulash
   peerConnection.ontrack = e => {
     remoteVideo.srcObject = e.streams[0];
     remoteVideo.onloadedmetadata = () => remoteVideo.play();
@@ -191,17 +79,20 @@ function createPeer() {
 function initSocket() {
   socket = io();
 
-  // Ulanish
-  socket.on('connect', () => console.log('Socket.io ulanildi:', socket.id));
+  socket.on('connect', () =>
+    console.log('Socket.io ulanildi:', socket.id)
+  );
 
-  // Foydalanuvchilar sonini yangilash
+  // Jonli foydalanuvchilar soni
   socket.on('user-count', count => {
     liveUsers.textContent = `👥 Users: ${count}`;
   });
 
-  // Juftlashuvni boshlash
+  // Juftlashuv (paired) event – yangi aloqani boshlash
   socket.on('paired', async ({ initiator }) => {
     createPeer();
+
+    // Faqat initiator (taklifchi) bitta offer yaratadi
     if (initiator) {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
@@ -209,33 +100,38 @@ function initSocket() {
     }
   });
 
-  // Signaling xabarlari
+  // Signaling: offer, answer, ICE candidatelarni qabul qilish
   socket.on('signal', async data => {
     if (!peerConnection) createPeer();
-    if (data.description) {
-      if (data.description.type === 'offer') {
-        await peerConnection.setRemoteDescription(data.description);
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit('signal', { description: peerConnection.localDescription });
-      } else {
-        await peerConnection.setRemoteDescription(data.description);
-      }
-    } else if (data.candidate) {
-      if (peerConnection.remoteDescription) {
-        await peerConnection.addIceCandidate(data.candidate);
-      }
+
+    // OFFER qabul qilish
+    if (data.description?.type === 'offer' &&
+        peerConnection.signalingState === 'stable') {
+      await peerConnection.setRemoteDescription(data.description);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit('signal', { description: peerConnection.localDescription });
+
+    // ANSWER qabul qilish
+    } else if (data.description?.type === 'answer' &&
+               peerConnection.signalingState === 'have-local-offer') {
+      await peerConnection.setRemoteDescription(data.description);
+
+    // ICE candidate qabul qilish
+    } else if (data.candidate &&
+               peerConnection.remoteDescription) {
+      await peerConnection.addIceCandidate(data.candidate);
     }
   });
 
-  // Sherik uzilganda
+  // Hamroh uzilganda tozalash
   socket.on('partner-disconnected', () => {
     if (peerConnection) peerConnection.close();
     peerConnection = null;
     remoteVideo.srcObject = null;
   });
 
-  // "Next" tugmasi
+  // Keyingi suhbat
   nextChat.addEventListener('click', () => socket.emit('next'));
 }
 
