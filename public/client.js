@@ -1,3 +1,5 @@
+
+// public/client.js
 (function() {
   var startBtn = document.getElementById('startBtn');
   var videos = document.getElementById('videos');
