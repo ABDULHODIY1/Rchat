@@ -1,3 +1,16 @@
+/*
+Project: Random Video Chat
+Tech Stack: Node.js, Express, Socket.io, WebRTC
+UI: Tailwind CSS
+
+Run:
+1. npm init -y
+2. npm install express socket.io
+3. node server.js
+4. Open http://localhost:3000
+*/
+
+// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
