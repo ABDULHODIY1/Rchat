@@ -1,21 +1,19 @@
-
----
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Random Video Chat</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
-  <div class="w-full max-w-md bg-white p-4 rounded shadow">
-    <h1 class="text-xl font-bold mb-4 text-center">🔀 Random Video Chat</h1>
-    <div class="flex flex-col sm:flex-row gap-2">
+  <div class="w-full max-w-md bg-white p-4 rounded shadow text-center">
+    <h1 class="text-xl font-bold mb-4">🔀 Random Video Chat</h1>
+    <div id="videos" class="hidden flex-col sm:flex-row gap-2">
       <video id="localVideo" class="w-full bg-black rounded" autoplay muted playsinline></video>
       <video id="remoteVideo" class="w-full bg-black rounded" autoplay playsinline></video>
     </div>
-    <div class="mt-4 flex justify-center space-x-4">
+    <button id="startBtn" class="px-4 py-2 bg-green-600 text-white rounded mb-4">Start Chat</button>
+    <div id="controls" class="hidden mt-4 flex justify-center space-x-4">
       <button id="nextBtn" class="px-3 py-1 bg-blue-600 text-white rounded">Next</button>
       <button id="discBtn" class="px-3 py-1 bg-red-600 text-white rounded">Disconnect</button>
     </div>
