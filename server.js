@@ -1,3 +1,16 @@
+/*
+Project: Random Video Chat
+Tech Stack: Node.js, Express, Socket.io, WebRTC
+UI: Tailwind CSS
+
+Run:
+1. npm init -y
+2. npm install express socket.io
+3. node server.js
+4. Open http://localhost:3000
+*/
+
+// server.js
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -6,14 +19,15 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+
+// Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Queue of socket IDs waiting to be paired
+// In-memory queue and partner mapping
 const waiting = [];
-
-// Map from socket ID to its partner ID
 const partners = new Map();
 
+// Attempt to pair waiting clients
 function tryPair() {
   while (waiting.length >= 2) {
     const id1 = waiting.shift();
@@ -28,44 +42,38 @@ function tryPair() {
 
 io.on('connection', socket => {
   console.log('Connected:', socket.id);
-  // Add to waiting and attempt pairing
   waiting.push(socket.id);
   tryPair();
 
   socket.on('next', () => {
-    // Remove current partner mapping
-    const oldPartner = partners.get(socket.id);
-    if (oldPartner) {
-      partners.delete(oldPartner);
+    const old = partners.get(socket.id);
+    if (old) {
+      partners.delete(old);
       partners.delete(socket.id);
-      // Notify old partner to requeue
-      io.to(oldPartner).emit('partner-disconnected');
-      waiting.push(oldPartner);
+      io.to(old).emit('partner-disconnected');
+      waiting.push(old);
     }
-    // Requeue this socket and try pairing
     waiting.push(socket.id);
     tryPair();
   });
 
   socket.on('signal', data => {
-    const partnerId = partners.get(socket.id);
-    if (partnerId) io.to(partnerId).emit('signal', data);
+    const dest = partners.get(socket.id);
+    if (dest) io.to(dest).emit('signal', data);
   });
 
   socket.on('disconnect', () => {
     console.log('Disconnected:', socket.id);
-    // Remove from waiting if present
     const idx = waiting.indexOf(socket.id);
-    if (idx !== -1) waiting.splice(idx,1);
-    // Notify and cleanup partner
-    const partnerId = partners.get(socket.id);
-    if (partnerId) {
-      io.to(partnerId).emit('partner-disconnected');
-      partners.delete(partnerId);
+    if (idx !== -1) waiting.splice(idx, 1);
+    const p = partners.get(socket.id);
+    if (p) {
+      io.to(p).emit('partner-disconnected');
+      partners.delete(p);
     }
     partners.delete(socket.id);
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Server listening: http://localhost:${PORT}`));
