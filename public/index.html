@@ -1,66 +1,26 @@
-<!--<!DOCTYPE html>-->
-<!--<html lang="uz">-->
-<!--<head>-->
-<!--  <meta charset="UTF-8" />-->
-<!--  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>-->
-<!--  <title>Random Video Chat</title>-->
-<!--  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">-->
-<!--  <link rel="stylesheet" href="style.css" />-->
-<!--</head>-->
-<!--<body>-->
-<!--  <div id="app">-->
-<!--    <div id="liveUsers">👥 Users: 0</div>-->
-<!--    <video id="remoteVideo" autoplay playsinline></video>-->
-<!--    <video id="localVideo" autoplay muted playsinline></video>-->
-<!--    <div id="controls">-->
-<!--      <button id="toggleCamera" class="control-button"><i class="bi bi-camera-video"></i></button>-->
-<!--      <button id="toggleMic" class="control-button"><i class="bi bi-mic"></i></button>-->
-<!--      <button id="nextChat" class="start-button"><i class="bi bi-arrow-clockwise"></i></button>-->
-<!--    </div>-->
-<!--  </div>-->
 
-<!--  <script src="/socket.io/socket.io.js"></script>-->
-<!--  <script src="app.js"></script>-->
-<!--</body>-->
-<!--</html>-->
-<html lang="uz">
+---
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Random Video Chat</title>
-  <!-- Bootstrap ikonlari -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
-    rel="stylesheet"
-  />
-  <!-- Stil fayli -->
-  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <div id="app">
-    <!-- Foydalanuvchilar soni -->
-    <div id="liveUsers">👥 Users: 0</div>
-
-    <!-- Video elementlar -->
-    <video id="remoteVideo" autoplay playsinline></video>
-    <video id="localVideo"  autoplay muted playsinline></video>
-
-    <!-- Kontrol tugmalari -->
-    <div id="controls">
-      <button id="toggleCamera" class="control-button">
-        <i class="bi bi-camera-video"></i>
-      </button>
-      <button id="toggleMic" class="control-button">
-        <i class="bi bi-mic"></i>
-      </button>
-      <button id="nextChat" class="start-button">
-        <i class="bi bi-arrow-clockwise"></i>
-      </button>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
+  <div class="w-full max-w-md bg-white p-4 rounded shadow">
+    <h1 class="text-xl font-bold mb-4 text-center">🔀 Random Video Chat</h1>
+    <div class="flex flex-col sm:flex-row gap-2">
+      <video id="localVideo" class="w-full bg-black rounded" autoplay muted playsinline></video>
+      <video id="remoteVideo" class="w-full bg-black rounded" autoplay playsinline></video>
+    </div>
+    <div class="mt-4 flex justify-center space-x-4">
+      <button id="nextBtn" class="px-3 py-1 bg-blue-600 text-white rounded">Next</button>
+      <button id="discBtn" class="px-3 py-1 bg-red-600 text-white rounded">Disconnect</button>
     </div>
   </div>
-
-  <!-- Socket.IO va app.js -->
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js"></script>
+  <script src="client.js"></script>
 </body>
 </html>
